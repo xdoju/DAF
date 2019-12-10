@@ -1,0 +1,12 @@
+running DAF using the computed DAGs...done
+running the original DAF...done
+*comparing result*
+result_dag
+Average elapsed time: 1198.6420317045454
+Average #recursive calls: 1022702.4090909091
+#Solved queries: 88
+
+result_daf
+Average elapsed time: 1192.6091097727274
+Average #recursive calls: 1022702.4090909091
+#Solved queries: 88
