@@ -9,20 +9,18 @@ using namespace std;
 const int DIA = 50;
 const int CAND = 1;
 
-int dataN;
-vector<int> dataLabel;
-vector<vector<int>> dataCon;
 map<int, vector<int>> dataLabelCount;
 
 void readData(char *fileName){
     FILE *file = fopen(fileName, "r");
 
-    fscanf(file, " %*c%*d%d", &dataN);  // t 1 <N>
+    int N;
+    fscanf(file, " %*c%*d%d", &N);  // t 1 <N>
 
-    dataLabel.resize(dataN);
-    dataCon.resize(dataN);
+    vector<int> dataLabel(N);
+    vector<vector<int>> dataCon(N);
 
-    for(int i = 0; i < dataN; i++){
+    for(int i = 0; i < N; i++){
         int id, label;
         fscanf(file, " %*c%d%d", &id, &label);  // v <id> <label>
 
@@ -39,7 +37,7 @@ void readData(char *fileName){
 
     fclose(file);
 
-    for(int i = 0; i < dataN; i++){
+    for(int i = 0; i < N; i++){
         int deg = dataCon[i].size();
         dataLabelCount[dataLabel[i]].push_back(deg);
     }
