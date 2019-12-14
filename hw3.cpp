@@ -6,138 +6,163 @@
 #include <algorithm>
 using namespace std;
 
-int dataN;
-vector<int> dataLabel;
-vector<vector<int>> dataCon;
+const int DIA = 50;
+const int CAND = 1;
+
 map<int, vector<int>> dataLabelCount;
 
 void readData(char *fileName){
-  FILE *file = fopen(fileName, "r");
+    FILE *file = fopen(fileName, "r");
 
-  fscanf(file, " %*c%*d%d", &dataN);  // t 1 <N>
+    int N;
+    fscanf(file, " %*c%*d%d", &N);  // t 1 <N>
 
-  dataLabel.resize(dataN);
-  dataCon.resize(dataN);
+    vector<int> dataLabel(N);
+    vector<vector<int>> dataCon(N);
 
-  for(int i = 0; i < dataN; i++){
-    int id, label;
-    fscanf(file, " %*c%d%d", &id, &label);  // v <id> <label>
+    for(int i = 0; i < N; i++){
+        int id, label;
+        fscanf(file, " %*c%d%d", &id, &label);  // v <id> <label>
 
-    dataLabel[id] = label;
-  }
+        dataLabel[id] = label;
+    }
 
-  for(;;){
-    int v1, v2;
-    if(fscanf(file, " %*c%d%d%*d", &v1, &v2) == EOF) break;  // e <v1> <v2> <label>
+    for(;;){
+        int v1, v2;
+        if(fscanf(file, " %*c%d%d%*d", &v1, &v2) == EOF) break;  // e <v1> <v2> <label>
 
-    dataCon[v1].push_back(v2);
-    dataCon[v2].push_back(v1);
-  }
+        dataCon[v1].push_back(v2);
+        dataCon[v2].push_back(v1);
+    }
 
-  fclose(file);
+    fclose(file);
 
-  for(int i = 0; i < dataN; i++){
-    int deg = dataCon[i].size();
-    dataLabelCount[dataLabel[i]].push_back(deg);
-  }
+    for(int i = 0; i < N; i++){
+        int deg = dataCon[i].size();
+        dataLabelCount[dataLabel[i]].push_back(deg);
+    }
 
-  for(auto &p : dataLabelCount){
-    sort(p.second.begin(), p.second.end());
-  }
+    for(auto &p : dataLabelCount){
+        sort(p.second.begin(), p.second.end());
+    }
 }
 
-void doQuery(char *fileName, int numQuery){
-  FILE *file = fopen(fileName, "r");
+struct V {
+    int id, dia, cand;
 
-  while(numQuery--){
-    int N, sumDegree;
-    fscanf(file, " %*c%*d%d%d", &N, &sumDegree);  // t <id> <N> <sumDegree>
+    bool operator< (const V &r) const {
+        int v = dia * DIA + cand * CAND;
+        int w = r.dia * DIA + r.cand * CAND;
 
-    vector<int> queryLabel(N);
-    vector<vector<int>> queryCon(N);
-
-    for(int i = 0; i < N; i++){
-      int id, label, deg;
-      fscanf(file, "%d%d%d", &id, &label, &deg);  // <id> <label> <deg> <vertex list>
-
-      queryLabel[id] = label;
-
-      while(deg--){
-        int x; fscanf(file, "%d", &x);
-        queryCon[id].push_back(x);
-      }
+        if(v != w) return v > w;
+        return id > r.id;
     }
+};
 
-    // Select root
-    int root = -1, rootDia = N, rootCand = dataN + 1;
+void doQuery(char *fileName, int numQuery){
+    FILE *file = fopen(fileName, "r");
 
-    for(int i = 0; i < N; i++){
-      // Find root candidates
-      int label = queryLabel[i], deg = queryCon[i].size();
+    while(numQuery--){
+        int N;
+        fscanf(file, " %*c%*d%d%*d", &N);  // t <id> <N> <sumDegree>
 
-      // candCount : same label && degree >= deg
-      vector<int> &labelCount = dataLabelCount[label];
-      int candCount = labelCount.end() - lower_bound(labelCount.begin(), labelCount.end(), deg);
+        vector<int> queryLabel(N);
+        vector<vector<int>> queryCon(N);
 
-      if(candCount == 0){ root = i; break; }
+        for(int i = 0; i < N; i++){
+            int id, label, deg;
+            fscanf(file, "%d%d%d", &id, &label, &deg);  // <id> <label> <deg> <vertex list>
 
-      // Do BFS to find graph center
-      // Total complexity: O(NM)
+            queryLabel[id] = label;
 
-      int dia = 0;
-
-      queue<int> q;
-      vector<bool> vs(N);  // Warning: vector<bool> is dangerous, pay attention
-
-      q.push(i); vs[i] = true;
-
-      for(;;){
-        int cnt = q.size();
-
-        while(cnt--){
-          int x = q.front(); q.pop();
-
-          for(int y : queryCon[x]){
-            if(!vs[y]){ q.push(y); vs[y] = true; }
-          }
+            while(deg--){
+                int x; fscanf(file, "%d", &x);
+                queryCon[id].push_back(x);
+            }
         }
 
-        if(q.empty()) break;
-        dia++;
-      }
+        // Run BFS to find farthest vertex per each vertex
+        vector<int> queryDia(N);
 
-      if(dia < rootDia || (dia == rootDia && candCount < rootCand)){
-        root = i; rootDia = dia; rootCand = candCount;
-      }
+        for(int i = 0; i < N; i++){
+            int dia = 0;
+
+            queue<int> q;
+            vector<bool> vs(N);
+
+            q.push(i); vs[i] = true;
+
+            for(;;){
+                int cnt = q.size();
+
+                while(cnt--){
+                    int x = q.front(); q.pop();
+
+                    for(int y : queryCon[x]){
+                        if(!vs[y]){ q.push(y); vs[y] = true; }
+                    }
+                }
+
+                if(q.empty()) break;
+                dia++;
+            }
+
+            queryDia[i] = dia;
+        }
+
+        // Get # of candidates per each vertex
+        // Candidate: same label && degree >= deg
+        vector<int> queryCand(N);
+
+        for(int i = 0; i < N; i++){
+            int label = queryLabel[i], deg = queryCon[i].size();
+
+            vector<int> &labelCount = dataLabelCount[label];
+            queryCand[i] = labelCount.end() - lower_bound(labelCount.begin(), labelCount.end(), deg);
+        }
+
+        // Find root with minimum weight
+        V root = { 0, queryDia[0], queryCand[0] };
+
+        for(int i = 1; i < N; i++){
+            V now = { i, queryDia[i], queryCand[i] };
+            if(root < now) root = now;
+        }
+
+        // Make DAG
+        priority_queue<V> pq;
+        vector<bool> vs(N);
+
+        pq.push(root); vs[root.id] = true;
+        bool f = false;
+
+        while(!pq.empty()){
+            V now = pq.top(); pq.pop();
+
+            if(f) putchar(' ');
+            else f = true;
+
+            printf("%d", now.id);
+
+            for(int y : queryCon[now.id]){
+                if(!vs[y]){ pq.push({ y, queryDia[y], queryCand[y] }); vs[y] = true; }
+            }
+        }
+
+        putchar('\n');
     }
 
-    queue<int> q;
-    vector<bool> vs(N);  // Warning: vector<bool> is dangerous, pay attention
-
-    q.push(root); vs[root] = true; printf("%d", root);
-
-    while(!q.empty()){
-      int x = q.front(); q.pop();
-
-      for(int y : queryCon[x]){
-        if(!vs[y]){ q.push(y); vs[y] = true; printf(" %d", y); }
-      }
-    }
-
-    printf("\n"); fflush(stdout);
-  }
-
-  fclose(file);
+    fclose(file);
 }
 
 int main(int argc, char *argv[]){
-  if(argc != 4){
-    fprintf(stderr, "Usage: %s <data> <query> <# of query>\n", argv[0]);
-    return -1;
-  }
+    if(argc != 4){
+        fprintf(stderr, "Usage: %s <data> <query> <# of query>\n", argv[0]);
+        return -1;
+    }
 
-  readData(argv[1]);
-  doQuery(argv[2], atoi(argv[3]));
+    readData(argv[1]);
+    doQuery(argv[2], atoi(argv[3]));
 
-  return 0;
+    return 0;
 }
